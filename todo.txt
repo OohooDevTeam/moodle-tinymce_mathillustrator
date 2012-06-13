@@ -1,0 +1,6 @@
+Todo:
+style.css
+element.js
+html5_equation.js
+equation.php
+editor_plugin.js
