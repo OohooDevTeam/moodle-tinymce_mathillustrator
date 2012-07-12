@@ -1,14 +1,9 @@
-function ContainerElement(text, scale) {
+function ContainerElement(text, scale, parent) {
     this.x = null;
     this.y = null;
 
     this.width = null;
     this.height = null;
-
-    this.text = null;
-
-    this.textWidth = null;
-    this.textHeight = null;
 
     this.elements = null;
     this.widths = null;
@@ -20,36 +15,45 @@ function ContainerElement(text, scale) {
     else
         this.scale = scale;
 
+    this.text = null;
+    this.textWidth = null;
+    this.textHeight = null;
+
     this.setText(text);
+
+    this.parent = parent;
 }
+////////////////////////////////////////////////////////////////////////////////
 ContainerElement.prototype.draw = function() {
-    if (this.elements.length == 0)
+    if (this.text == "")
         ctx.strokeRect(this.x, this.y, this.width, this.height);
     else {
         var x = 0;
         for (var n in this.elements) {
-            if (this.elements[n] instanceof Image)
-                ctx.drawImage(this.elements[n], this.x + x + 1, this.y + ((this.height - this.heights[n]) / 2),
+            if (this.elements[n] instanceof Image) {
+                ctx.drawImage(this.elements[n], this.x + x, this.y + ((this.height - this.heights[n]) / 2),
                     this.widths[n]*this.scale*Math.pow(0.75, this.displace[n]), this.heights[n]*this.scale*Math.pow(0.75, this.displace[n]));
+            }
             else {
                 ctx.save();
                 ctx.font = (fontSize*this.scale*Math.pow(0.75, this.displace[n])) + "px Cambria";
 
                 var dy = -this.displace[n] * 8;
 
-                ctx.fillText(this.elements[n], this.x + x + 1, this.y + 1.25*this.height - 0.5*this.heights[n] + dy);
+                ctx.fillText(this.elements[n], this.x + x, this.y + 1.25*this.height - 0.5*this.heights[n] + dy);
                 ctx.restore();
             }
-            x += this.widths[n] + 2*this.scale;
+            x += this.widths[n];
         }
     }
 }
 ContainerElement.prototype.parseText = function(text) {
+    //Recursive exit condition
     if (text == "")
         return null;
 
     if (text[0] == '\\') {
-        for (var n = 0; n < containerAcceptable.length; n++) {
+        for (var n in containerAcceptable) {
             if (text.indexOf(containerAcceptable[n]) == 1) {
                 if (containerAcceptable[n] == "left" || containerAcceptable[n] == "right") {
                     return this.parseText(text.substr(containerAcceptable[n].length + 1));
@@ -140,35 +144,19 @@ ContainerElement.prototype.parseText = function(text) {
 
     if (first != 0) {
         this.elements.push(text.substr(0, first).replace(/\ /g, ""));
-        this.widths.push(this.getTextWidthHeight(text.substr(0, first).replace(/\ /g, ""), fontSize*this.scale)[0]);
-        this.heights.push(this.getTextWidthHeight(text.substr(0, first).replace(/\ /g, ""), fontSize*this.scale)[1]);
+        this.widths.push(getTextWidthHeight(text.substr(0, first).replace(/\ /g, ""), fontSize*this.scale)[0]);
+        this.heights.push(getTextWidthHeight(text.substr(0, first).replace(/\ /g, ""), fontSize*this.scale)[1]);
         this.displace.push(0);
     }
 
     return this.parseText(text.substr(first));
 }
+////////////////////////////////////////////////////////////////////////////////
 ContainerElement.prototype.getElement = function(canvasX, canvasY) {
     return this;
 }
 ContainerElement.prototype.getRect = function(canvasX, canvasY) {
-    return this.rect();
-}
-////////////////////////////////////////////////////////////////////////////////
-ContainerElement.prototype.getTextWidthHeight = function(text, fontSize) {
-    var tester = $('<span></span>').css({
-        'font-size' : fontSize + 'px',
-        'font-family' : 'cambria',
-        'white-space' : 'pre'
-    }).text(text);
-
-    $('body').append(tester);
-
-    var width = $(tester).width();
-    var height = $(tester).height();
-
-    tester.remove();
-
-    return [width, height];
+    return [this.x, this.y, this.width, this.height];
 }
 ContainerElement.prototype.inBounds = function(canvasX, canvasY) {
     if (canvasX > this.x && canvasX < this.x + this.width
@@ -179,9 +167,6 @@ ContainerElement.prototype.inBounds = function(canvasX, canvasY) {
 }
 ContainerElement.prototype.outputText = function() {
     return this.text;
-}
-ContainerElement.prototype.rect = function() {
-    return [this.x, this.y, this.width, this.height];
 }
 ContainerElement.prototype.setText = function(text) {
     this.elements = new Array();
@@ -201,7 +186,7 @@ ContainerElement.prototype.setText = function(text) {
     else {
         this.text = text;
 
-        var size = this.getTextWidthHeight(text, fontSize*this.scale);
+        var size = getTextWidthHeight(text, fontSize*this.scale);
         this.textWidth = size[0];
         this.textHeight = size[1];
 
@@ -214,54 +199,17 @@ ContainerElement.prototype.setText = function(text) {
             this.height = Math.max(this.height, this.heights[n]);
         }
     }
+    if (this.parent != undefined) {
+        this.parent.update();
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
-function MatrixElement(matrixI, matrixJ, braceType) {
+function MatrixElement(matrixI, matrixJ, type) {
     this.i = matrixI;
     this.j = matrixJ;
 
     this.style = null;
-    switch (braceType) {
+    switch (type) {
         case 'curly':
             this.style = ['{', '}'];
             break;
@@ -434,7 +382,7 @@ MatrixElement.prototype.update = function () {
     this.y = (canvasHeight - this.height) / 2;
 }
 ////////////////////////////////////////////////////////////////////////////////
-function BigElement(type, text) {
+function BigElement(type) {
     this.x = null;
     this.y = null;
 
@@ -442,8 +390,6 @@ function BigElement(type, text) {
     this.height = null;
 
     this.type = type;
-
-    this.text = null;
 
     //Type can be sum, int, iint, iiint, coprod, prod
     this.img = new Image();
@@ -454,30 +400,55 @@ function BigElement(type, text) {
         }
     }
 
-    this.eq = new ContainerElement("");
-    this.sub = new ContainerElement("", 0.75);
-    this.sup = new ContainerElement("", 0.75);
-
-    this.setText(text);
+    this.eq = new ContainerElement("", null, this);
+    this.sub = new ContainerElement("", 0.75, this);
+    this.sup = new ContainerElement("", 0.75, this);
 
     this.update();
 }
+BigElement.prototype.update = function() {
+    this.width = Math.max(this.img.width, this.sub.width, this.sup.width) + this.eq.width;
+    this.height = this.img.height + this.sub.height + this.sup.height;
+    if (this.type == 'frac') {
+        this.height += 10;
+    }
+}
 BigElement.prototype.draw = function() {
-    this.update();
+    if (this.type == 'frac') {
+        var x = this.x + (this.width/2);
 
-    ctx.drawImage(this.img, this.x, this.y + this.sup.height);
+        //ctx.drawImage(this.img, x, this.y + this.sup.height);
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y + (this.height/2));
+        ctx.lineTo(this.x + this.width, this.y + (this.height/2));
+        ctx.closePath();
+        ctx.stroke();
 
-    this.eq.x = this.x + this.img.width;
-    this.eq.y = this.y + ((this.img.height - this.eq.height) / 2 + this.sup.height);
-    this.eq.draw();
+        this.sub.x = x - (this.sub.width/2);
+        this.sub.y = this.y + this.height - this.sup.height;
+        this.sub.draw();
 
-    this.sub.x = this.x + ((this.img.width - this.sub.width) / 2);
-    this.sub.y = this.y + this.img.height + this.sup.height;
-    this.sub.draw();
+        this.sup.x = x - (this.sup.width/ 2);
+        this.sup.y = this.y;
+        this.sup.draw();
+    }
+    else {
+        var x = this.x + ((this.width - this.eq.width - this.img.width)/2);
 
-    this.sup.x = this.x + ((this.img.width - this.sup.width) / 2);
-    this.sup.y = this.y;
-    this.sup.draw();
+        ctx.drawImage(this.img, x, this.y + this.sup.height);
+
+        this.eq.x = this.x + (this.width - this.eq.width);
+        this.eq.y = this.y + ((this.img.height - this.eq.height) / 2 + this.sup.height);
+        this.eq.draw();
+
+        this.sub.x = x - ((this.sub.width - this.img.width)/2);
+        this.sub.y = this.y + this.img.height + this.sup.height;
+        this.sub.draw();
+
+        this.sup.x = x - ((this.sup.width - this.img.width) / 2);
+        this.sup.y = this.y;
+        this.sup.draw();
+    }
 }
 BigElement.prototype.inBounds = function(canvasX, canvasY) {
     if (canvasX > this.x && canvasX < this.x + this.width
@@ -488,17 +459,13 @@ BigElement.prototype.inBounds = function(canvasX, canvasY) {
 }
 BigElement.prototype.getRect = function(canvasX, canvasY) {
     if (this.eq.inBounds(canvasX, canvasY))
-        return this.eq.rect();
+        return this.eq.getRect();
     else if (this.sub.inBounds(canvasX, canvasY))
-        return this.sub.rect();
+        return this.sub.getRect();
     else if (this.sup.inBounds(canvasX, canvasY))
-        return this.sup.rect();
+        return this.sup.getRect();
     else
         return [this.x, this.y, this.width, this.height];
-}
-BigElement.prototype.update = function() {
-    this.width = Math.max(this.img.width, this.sub.width, this.sup.width) + this.eq.width;
-    this.height = this.img.height + this.sub.height + this.sup.height;
 }
 BigElement.prototype.getElement = function(canvasX, canvasY) {
     if (this.eq.inBounds(canvasX, canvasY))
@@ -552,7 +519,21 @@ BigElement.prototype.setText = function(text) {
     }
 }
 BigElement.prototype.outputText = function() {
-    return this.text;
+    return '\\' + this.type + '_{' + this.sub.outputText() + '}^{' + this.sup.outputText() + '}{' + this.eq.outputText() + '}';
 }
-//Inherit parent methods
-//MatrixElement.prototype = new TextElement();
+////////////////////////////////////////////////////////////////////////////////
+function getTextWidthHeight(text, fontSize) {
+    //Create a tester to get the sizes
+    var tester = $('<span></span>').css({
+        'font-size' : fontSize + 'px',
+        'font-family' : 'Cambria',
+        'white-space' : 'pre'
+    }).text(text).appendTo('body');
+    //Get the sizes
+    var width = tester.width();
+    var height = tester.height();
+    //Remove the tester
+    tester.remove();
+
+    return [width, height];
+}

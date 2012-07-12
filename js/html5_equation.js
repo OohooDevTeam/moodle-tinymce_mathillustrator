@@ -1,19 +1,10 @@
-//Get the canvas element and context
-//var canvas = document.getElementById("equation_preview");
-var canvas = $("#equation_preview")[0];
-var ctx = canvas.getContext("2d");
-
-//The width and height of the canvas
-var canvasWidth;
-var canvasHeight;
-
-//Set the default font
+//-----Global Varialbes
+//Canvas element and its context
+var canvas, ctx;
+//Width and height of the canvas
+var canvasWidth, canvasHeight;
+//Default font size
 var fontSize = 16;
-ctx.font = fontSize + 'px Cambria';
-
-//Set up the mouse and keyboard events
-$(canvas).on("mousemove", canvasMove).on("mousedown", canvasDown).on("contextmenu", canvasContextMenu).on("mouseup mouseout", canvasUp);
-$(document).on("keydown", keyDown);
 
 //Math elements array
 var mathElements = new Array();
@@ -26,16 +17,25 @@ var selectedPos = 0;
 
 var containerAcceptable = new Array("alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega",
     "infty", "neq", "cdots", "cdot", "times", "div", "perp", "parallel", "therefore", "because", "vdots", "ddots", "left", "right", "{", "}", "pm", "langle", "rangle", "|", "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Phi", "Psi", "Omega");
-var bigs = new Array("sum", "int", "prod", "iint", "coprod", "lim");
+var bigs = new Array("sum", "int", "prod", "iint", "coprod", "lim", "frac");
 var bolds = new Array("sin", "cos", "tan", "ln", "e", "log");
 var surroundable = new Array("\\left( \\right)", "\\left[ \\right]", "\\left| \\right|", "\\left\\{ \\right\\}", "\\left\\langle \\right\\rangle", "\\left\\| \\right\\|",
     "\\sqrt{ }", "\\left\\lfloor \\right\\rfloor", "\\left\\lceil \\right\\rceil", "\\ln( )", "e^{ }");
 
+//Init function
 $(window).load(function () {
+    //Get the canvas and its context
+    canvas = $("#equation_preview");
+    ctx = canvas[0].getContext("2d");
     //Get the width and height of the canvas
-    canvasWidth = $(canvas).width();
-    canvasHeight = $(canvas).height();
-    $(canvas).attr('width', canvasWidth + 'px').attr('height', canvasHeight + 'px');
+    canvasWidth = canvas.width();
+    canvasHeight = canvas.height();
+    canvas.attr('width', canvasWidth + 'px').attr('height', canvasHeight + 'px');
+    //Set the default font
+    ctx.font = fontSize + 'px Cambria';
+    //Set up the mouse and keyboard events
+    canvas.on("mousemove", canvasMove).on("mousedown", canvasDown).on("contextmenu", canvasContextMenu).on("mouseup mouseout", canvasUp);
+    $(document).on("keydown", keyDown);
 
     $("#buttons .smallbutton").draggable({
         cancel: "button",
@@ -45,23 +45,27 @@ $(window).load(function () {
             return $(this).children("input").clone().appendTo("body").css("cursor", "none");
         },
         start: function (event, ui) {
-            if ($(this).children("input").val() == "\\sum") {
-                selected = new BigElement("sum");
+            selected = null;
+            for (var n in bigs) {
+                if ($(this).children("input").val() == bigs[n]) {
+                    selected = new BigElement(bigs[n].substr(1));
+                    return;
+                }
             }
-            else {
+            if (selected == null) {
                 selected = new ContainerElement($(this).children("input").val());
-            }            
+            }
             selectedX = 0;
             selectedY = 0;
         }
     });
 
-    $("#equation_preview" ).droppable({
+    $("#equation_preview").droppable({
         activeClass: "canvas-active",
         over: function(event, ui) {
             //Get X position of mouse relative to the canvas
-            var x = event.pageX - canvas.offsetLeft;
-            var y = event.pageY - canvas.offsetTop;
+            var x = event.pageX - canvas.offset().left;
+            var y = event.pageY - canvas.offset().top;
 
             //Must be this type of loop so that n increments at the end
             for (var n = 0; n < mathElements.length; n++) {
@@ -129,7 +133,7 @@ function drawCanvas() {
     }
 
     //If an element is being hovered
-    if (hover != null) {        
+    if (hover != null) {
         ctx.save();
         ctx.strokeStyle = 'red';
         ctx.strokeRect(hover.x, hover.y, hover.width, hover.height);
@@ -199,17 +203,20 @@ function repositionElement(index) {
     drawCanvas();
 }
 
-function addText(element) {    
+function addText(element) {
     var text = $(element).children().first().val();
-    
-    var newElement;
-    if (text == "\\sum") {
-        newElement = new BigElement("sum");
+
+    var newElement = null;
+    for (var n in bigs) {
+        if (text.substr(1) == bigs[n]) {
+            newElement = new BigElement(bigs[n]);
+            break;
+        }
     }
-    else {
+    if (newElement == null) {
         newElement = new ContainerElement(text);
-    }            
-    
+    }
+
     if (mathElements.length > 0) {
         var lastElement = mathElements[mathElements.length - 1];
         if (lastElement instanceof ContainerElement && newElement instanceof ContainerElement)
@@ -271,8 +278,8 @@ function parseString(inputString) {
 
 function canvasMove(event) {
     //Get X and Y positions of the mouse relative to the canvas
-    var x = event.pageX - canvas.offsetLeft;
-    var y = event.pageY - canvas.offsetTop;
+    var x = event.pageX - canvas.offset().left;
+    var y = event.pageY - canvas.offset().top;
 
     hover = null;
     for (var n in mathElements) {
@@ -284,29 +291,26 @@ function canvasMove(event) {
 
     //Left mouse is down and something is selected
     if (event.which == 1 && selected != null) {
-        //Find out where the element should be      
+        //Find out where the element should be
         for (var n in mathElements) {
             if (x < mathElements[n].x + (mathElements[n].width / 2) && n < mathElements.length - 1 && x < mathElements[parseInt(n)+1].x + (mathElements[parseInt(n)+1].width / 2))
                 break;
         }
 
-        console.log(n);
-        
         if (selectedPos != n) {
-            console.log("changed");
             addElement(mathElements.splice(selectedPos, 1)[0], n);
 
             repositionElement(0);
 
             selectedPos = n;
-        }        
+        }
 
         //Move the selected element
         selected.x = x - selectedX;
         selected.y = y - selectedY;
 
-      
-      
+
+
     //mathElements.splice(n, 1);
     /*
      var x = event.pageX - canvas.offsetLeft;
@@ -341,15 +345,15 @@ function canvasMove(event) {
             drawCanvas();
          */
     }
-    
+
     drawCanvas();
-    
+
     return false;
 }
 function canvasDown(event) {
     //Get X and Y positions of the mouse relative to the canvas
-    var x = event.pageX - canvas.offsetLeft;
-    var y = event.pageY - canvas.offsetTop;
+    var x = event.pageX - canvas.offset().left;
+    var y = event.pageY - canvas.offset().top;
 
     //Left mouse click
     if (event.which == 1) {
@@ -375,21 +379,22 @@ function canvasDown(event) {
 }
 function canvasContextMenu(event) {
     //Get X and Y positions of the mouse relative to the canvas
-    var x = event.pageX - canvas.offsetLeft;
-    var y = event.pageY - canvas.offsetTop;
+    var x = event.pageX - canvas.offset().left;
+    var y = event.pageY - canvas.offset().top;
 
     if (hover != null && hover instanceof ContainerElement) {
+        var thisHover = hover;
         $("<input type='text' />").css({
             position: 'absolute',
-            top: (canvas.offsetTop + hover.y) + "px",
-            left: (canvas.offsetLeft + hover.x) + "px",
+            top: (canvas.offset().top + hover.y) + "px",
+            left: (canvas.offset().left + hover.x) + "px",
             display: 'block',
             width: hover.textWidth,
             height: hover.textHeight,
             font: (fontSize*hover.scale) + 'px cambria',
             padding: '0px'
         }).on("keyup keypress update keydown", function(e) {
-            hover.setText($(this).val());
+            thisHover.setText($(this).val());
 
             for (var m in mathElements) {
                 if (mathElements[m] instanceof MatrixElement) {
@@ -400,23 +405,21 @@ function canvasContextMenu(event) {
             if (e.keyCode == 13) {
                 $(this).remove();
                 $(canvas).css("cursor", "default");
-                hover = null;
                 repositionElement(0);
                 return;
             }
 
-            $(this).css("width", hover.textWidth + 6);
+            $(this).css("width", thisHover.textWidth + 6);
 
             drawCanvas();
         }).on("blur", function() {
             $(this).remove();
             $(canvas).css("cursor", "default");
-            hover = null;
             repositionElement(0);
             return false;
-        }).val(hover.text).insertBefore(canvas).focus();        
+        }).val(thisHover.text).insertBefore(canvas).focus();
     }
-    
+
     //Return false so normal context menu doesn't pop up
     return false;
 }

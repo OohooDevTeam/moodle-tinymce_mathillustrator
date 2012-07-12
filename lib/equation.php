@@ -19,6 +19,8 @@ $PAGE->requires->js(new moodle_url('../js/jquery-1.7.2.min.js'), true);
 $PAGE->requires->js(new moodle_url('../js/jquery-ui-1.8.20.custom.min.js'), true);
 $PAGE->requires->js(new moodle_url('../js/jquery.alerts.js'), true);
 $PAGE->requires->js(new moodle_url('../../../tiny_mce_popup.js'), true);
+$PAGE->requires->js(new moodle_url('../js/elements.js'), true);
+$PAGE->requires->js(new moodle_url('../js/html5_equation.js'), true);
 
 $PAGE->requires->css(new moodle_url('../css/jquery-ui-1.8.20.custom.css'));
 $PAGE->requires->css(new moodle_url('../css/jquery.alerts.css'));
@@ -73,7 +75,7 @@ function matrixButton($img, $braceType) {
                 <td><?php smallButton('abs_braces.png', '\left| \right|'); ?></td>
             </tr><tr>
                 <td><?php smallButton('subsuperscriptleft.png', ' _{subscript}^{superscript}\textrm{value} '); ?></td>
-                <td><?php smallButton('fraction.png', ' \frac{upper}{lower} '); ?></td>
+                <td><?php smallButton('fraction.png', '\frac'); ?></td>
                 <td><?php smallButton('vector.png', ' \vec{variable} '); ?></td>
                 <td><?php smallButton('unitvector.png', ' \hat{variable} '); ?></td>
                 <td><?php smallButton('log.png', ' \log(expression) '); ?></td>
@@ -214,9 +216,6 @@ function matrixButton($img, $braceType) {
 </div>
 <br/>
 <div style="text-align: center">
-    <canvas id="equation_preview"></canvas>
-    <script type="text/javascript" src="../js/html5_equation.js"></script>
-    <script type="text/javascript" src="../js/elements.js"></script>
-    <br/>
+    <canvas id="equation_preview"></canvas><br/>
     <input type="button" onclick="tinyMCEPopup.execCommand('mceInsertContent', false, output()); tinyMCEPopup.close();" value="Insert"/>
 </div>
