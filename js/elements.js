@@ -23,7 +23,6 @@ function ContainerElement(text, scale, parent) {
 
     this.parent = parent;
 }
-////////////////////////////////////////////////////////////////////////////////
 ContainerElement.prototype.draw = function() {
     if (this.text == "")
         ctx.strokeRect(this.x, this.y, this.width, this.height);
@@ -151,7 +150,6 @@ ContainerElement.prototype.parseText = function(text) {
 
     return this.parseText(text.substr(first));
 }
-////////////////////////////////////////////////////////////////////////////////
 ContainerElement.prototype.getElement = function(canvasX, canvasY) {
     return this;
 }
@@ -382,7 +380,7 @@ MatrixElement.prototype.update = function () {
     this.y = (canvasHeight - this.height) / 2;
 }
 ////////////////////////////////////////////////////////////////////////////////
-function BigElement(type) {
+function BigElement(type, sub, sup, eq) {
     this.x = null;
     this.y = null;
 
@@ -390,6 +388,8 @@ function BigElement(type) {
     this.height = null;
 
     this.type = type;
+
+    this.scale = 1;
 
     //Type can be sum, int, iint, iiint, coprod, prod
     this.img = new Image();
@@ -410,7 +410,7 @@ BigElement.prototype.update = function() {
     this.width = Math.max(this.img.width, this.sub.width, this.sup.width) + this.eq.width;
     this.height = this.img.height + this.sub.height + this.sup.height;
     if (this.type == 'frac') {
-        this.height += 10;
+        this.height += 5;
     }
 }
 BigElement.prototype.draw = function() {
@@ -519,21 +519,15 @@ BigElement.prototype.setText = function(text) {
     }
 }
 BigElement.prototype.outputText = function() {
+    if (this.type == 'frac') {
+        return '\\' + this.type + '{' + this.sup.outputText() + '}{' + this.sub.outputText() + '}';
+    }
     return '\\' + this.type + '_{' + this.sub.outputText() + '}^{' + this.sup.outputText() + '}{' + this.eq.outputText() + '}';
 }
 ////////////////////////////////////////////////////////////////////////////////
-function getTextWidthHeight(text, fontSize) {
-    //Create a tester to get the sizes
-    var tester = $('<span></span>').css({
-        'font-size' : fontSize + 'px',
-        'font-family' : 'Cambria',
-        'white-space' : 'pre'
-    }).text(text).appendTo('body');
-    //Get the sizes
-    var width = tester.width();
-    var height = tester.height();
-    //Remove the tester
-    tester.remove();
 
-    return [width, height];
-}
+
+
+
+
+

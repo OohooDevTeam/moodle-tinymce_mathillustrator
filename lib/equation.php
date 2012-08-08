@@ -15,12 +15,14 @@ $PAGE->set_context(get_context_instance(CONTEXT_SYSTEM));
 
 $PAGE->set_pagelayout('embedded');
 
+$PAGE->set_title('MathIllustrator');
+
 $PAGE->requires->js(new moodle_url('../js/jquery-1.7.2.min.js'), true);
 $PAGE->requires->js(new moodle_url('../js/jquery-ui-1.8.20.custom.min.js'), true);
 $PAGE->requires->js(new moodle_url('../js/jquery.alerts.js'), true);
 $PAGE->requires->js(new moodle_url('../../../tiny_mce_popup.js'), true);
-$PAGE->requires->js(new moodle_url('../js/elements.js'), true);
 $PAGE->requires->js(new moodle_url('../js/html5_equation.js'), true);
+//$PAGE->requires->js(new moodle_url('../js/MathJax/MathJax.js?config=TeX-AMS_HTML'), true);
 
 $PAGE->requires->css(new moodle_url('../css/jquery-ui-1.8.20.custom.css'));
 $PAGE->requires->css(new moodle_url('../css/jquery.alerts.css'));
@@ -37,12 +39,12 @@ function smallButton($img, $value) {
 
 //TODO
 function bigButton($img, $output) {
-    echo "<span class='bigbutton' onmousedown='\$(\"[id^=sub_]\").slideUp(\"fast\"); \$(\"[id^=sub_]\").promise().done(function() {\$(\"$output\").slideDown(\"fast\")});'><input type='image' src='../images/$img' value='$output' /></span>";
+    echo "<span class='bigbutton' onclick='addText(this)'><input type='image' src='../images/$img' value='$output' /></span>";
 }
 
 //TODO
-function vectorButton($img, $braceType) {
-    echo "<span class='bigbutton' onclick='addVector(\"$braceType\");'><input type='image' src='../images/$img' /></span>";
+function vectorButton($img, $matrixType) {
+    echo "<span class='bigbutton' onclick='addVector(\"$matrixType\");'><input type='image' src='../images/$img' /></span>";
 }
 
 //TODO
@@ -64,22 +66,22 @@ function matrixButton($img, $braceType) {
     <div id="HomeTab">
         <table>
             <tr>
-                <td><?php smallButton('comma.png', ' , '); ?></td>
-                <td><?php smallButton('subscript.png', ' {value}_{subscript} '); ?></td>
-                <td><?php smallButton('superscript.png', ' {value}^{superscript} '); ?></td>
-                <td><?php smallButton('subsuperscriptright.png', ' {value}_{subscript}^{superscript} '); ?></td>
-                <td><?php smallButton('ln.png', '\ln( )'); ?></td>
+                <td><?php smallButton('comma.png', ','); ?></td>
+                <td><?php smallButton('subscript.png', '{value}_{subscript}'); ?></td>
+                <td><?php smallButton('superscript.png', '{value}^{superscript}'); ?></td>
+                <td><?php smallButton('subsuperscript.png', '{value}_{subscript}^{superscript}'); ?></td>
+                <td><?php smallButton('ln.png', '\ln{( )}'); ?></td>
                 <td><?php smallButton('e.png', 'e^{ }'); ?></td>
                 <td><?php smallButton('round_braces.png', '\left( \right)'); ?></td>
                 <td><?php smallButton('square_braces.png', '\left[ \right]'); ?></td>
                 <td><?php smallButton('abs_braces.png', '\left| \right|'); ?></td>
             </tr><tr>
-                <td><?php smallButton('subsuperscriptleft.png', ' _{subscript}^{superscript}\textrm{value} '); ?></td>
-                <td><?php smallButton('fraction.png', '\frac'); ?></td>
-                <td><?php smallButton('vector.png', ' \vec{variable} '); ?></td>
-                <td><?php smallButton('unitvector.png', ' \hat{variable} '); ?></td>
-                <td><?php smallButton('log.png', ' \log(expression) '); ?></td>
-                <td><?php smallButton('logbase.png', ' \log_{base}(expression) '); ?></td>
+                <td><?php smallButton('subsuperscriptleft.png', '_{subscript}^{superscript}\textrm{value}'); ?></td>
+                <td><?php smallButton('frac.png', '\frac'); ?></td>
+                <td><?php smallButton('vector.png', '\vec{variable}'); ?></td>
+                <td><?php smallButton('unitvector.png', '\hat{variable}'); ?></td>
+                <td><?php smallButton('log.png', '\log{( )}'); ?></td>
+                <td><?php smallButton('logbase.png', '\log_{base}{(expression)}'); ?></td>
                 <td><?php smallButton('curly_braces.png', '\left\{ \right\}'); ?></td>
                 <td><?php smallButton('angle_braces.png', '\left\langle \right\rangle'); ?></td>
                 <td><?php smallButton('length_braces.png', '\left\| \right\|'); ?></td>
@@ -89,54 +91,39 @@ function matrixButton($img, $braceType) {
     <div id="OperatorsTab">
         <table>
             <tr>
-                <td><?php smallButton('plus.png', ' + '); ?></td>
-                <td><?php smallButton('minus.png', ' - '); ?></td>
+                <td><?php smallButton('plus.png', '+'); ?></td>
+                <td><?php smallButton('minus.png', '-'); ?></td>
                 <td><?php smallButton('times.png', '\times'); ?></td>
                 <td><?php smallButton('div.png', '\div'); ?></td>
                 <td><?php smallButton('cdot.png', '\cdot'); ?></td>
                 <td><?php smallButton('pm.png', '\pm'); ?></td>
-                <td><?php smallButton('equal.png', ' = '); ?></td>
-                <td><?php smallButton('definition.png', ' := '); ?></td>
+                <td><?php smallButton('equal.png', '='); ?></td>
+                <td><?php smallButton('definition.png', ':='); ?></td>
                 <td><?php smallButton('sqrt.png', '\sqrt{ }'); ?></td>
                 <td><?php smallButton('ceil.png', '\left\lceil \right\rceil'); ?></td>
-                <td rowspan="2"><?php bigButton('sum.png', '#sub_sum'); ?></td>
-                <td rowspan="2"><?php bigButton('prod.png', '#sub_prod'); ?></td>
-                <td rowspan="2"><?php bigButton('coprod.png', '#sub_coprod'); ?></td>
+                <td rowspan="2"><?php bigButton('sum.png', '\sum_{}^{}{}'); ?></td>
+                <td rowspan="2"><?php bigButton('prod.png', '\prod'); ?></td>
+                <td rowspan="2"><?php bigButton('coprod.png', '\coprod'); ?></td>
             </tr><tr>
-                <td><?php smallButton('le.png', ' \le '); ?></td>
-                <td><?php smallButton('lt.png', ' \< '); ?></td>
-                <td><?php smallButton('gt.png', ' > '); ?></td>
-                <td><?php smallButton('ge.png', ' \ge '); ?></td>
-                <td><?php smallButton('factorial.png', ' ! '); ?></td>
+                <td><?php smallButton('le.png', '\le'); ?></td>
+                <td><?php smallButton('lt.png', '\<'); ?></td>
+                <td><?php smallButton('gt.png', '>'); ?></td>
+                <td><?php smallButton('ge.png', '\ge'); ?></td>
+                <td><?php smallButton('factorial.png', '!'); ?></td>
                 <td><?php smallButton('mp.png', '\mp'); ?></td>
                 <td><?php smallButton('neq.png', '\neq'); ?></td>
-                <td><?php smallButton('simeq.png', ' \simeq '); ?></td>
-                <td><?php smallButton('sqrtpower.png', ' \sqrt[{*power*}]{(*expression*)} '); ?></td>
+                <td><?php smallButton('simeq.png', '\simeq'); ?></td>
+                <td><?php smallButton('sqrtpower.png', '\sqrt[{3}]{(*expression*)}'); ?></td>
                 <td><?php smallButton('floor.png', '\left\lfloor \right\rfloor'); ?></td>
             </tr>
         </table>
-
-        <div id="sub_prod" style="display: none">
-            <table border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                    <td><?php smallButton('coprod.png', '\coprod'); ?></td>
-                </tr>
-            </table>
-        </div>
-        <div id="sub_sum" style="display: none">
-            <table border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                    <td><?php smallButton('sum.png', '\sum'); ?></td>
-                </tr>
-            </table>
-        </div>
     </div>
     <div id="CalculusTab">
         <table>
             <tr>
-                <td rowspan="2"><?php bigButton('limit.png', '#sub_lim'); ?></td>
-                <td rowspan="2"><?php bigButton('derivative.png', '#sub_der'); ?></td>
-                <td rowspan="2"><?php bigButton('int.png', '#sub_int'); ?></td>
+                <td rowspan="2"><?php bigButton('limit.png', '\lim'); ?></td>
+                <td rowspan="2"><?php bigButton('derivative.png', '\der'); ?></td>
+                <td rowspan="2"><?php bigButton('Integral.png', '\int'); ?></td>
             </tr>
         </table>
     </div>
@@ -148,7 +135,7 @@ function matrixButton($img, $braceType) {
                 <td><?php smallButton('beta.png', '\beta'); ?></td>
                 <td><?php smallButton('gamma.png', '\gamma'); ?></td>
                 <td><?php smallButton('delta.png', '\delta'); ?></td>
-                <td><?php smallButton('epsilon.png', '\epsilon'); ?></td>
+                <td><?php smallButton('epsiv.png', '\epsilon'); ?></td>
                 <td><?php smallButton('zeta.png', '\zeta'); ?></td>
                 <td><?php smallButton('eta.png', '\eta'); ?></td>
                 <td><?php smallButton('theta.png', '\theta'); ?></td>
@@ -187,8 +174,8 @@ function matrixButton($img, $braceType) {
             <tr>
                 <td><?php matrixButton('matrix1.png', 'round'); ?></td>
                 <td><?php matrixButton('matrix2.png', 'square'); ?></td>
-                <td><?php vectorButton('vector1.png', 'round'); ?></td>
-                <!--<td><?php vectorButton('vector2.png', 'square'); ?></td>-->
+                <td><?php vectorButton('vector1.png', 'bmatrix'); ?></td>
+                <td><?php vectorButton('vector2.png', 'square'); ?></td>
             </tr>
         </table>
     </div>
@@ -196,13 +183,13 @@ function matrixButton($img, $braceType) {
         <table>
             <tr>
                 <td><?php smallButton('infty.png', '\infty'); ?></td>
-                <td><?php smallButton('primes.png', ' \mathbb{P} '); ?></td>
-                <td><?php smallButton('naturals.png', ' \mathbb{N} '); ?></td>
-                <td><?php smallButton('integers.png', ' \mathbb{Z} '); ?></td>
-                <td><?php smallButton('irrationals.png', ' \mathbb{I} '); ?></td>
-                <td><?php smallButton('rationals.png', ' \mathbb{Q} '); ?></td>
-                <td><?php smallButton('reals.png', ' \mathbb{R} '); ?></td>
-                <td><?php smallButton('complex.png', ' \mathbb{C} '); ?></td>
+                <td><?php smallButton('primes.png', '\mathbb{P}'); ?></td>
+                <td><?php smallButton('naturals.png', '\mathbb{N}'); ?></td>
+                <td><?php smallButton('integers.png', '\mathbb{Z}'); ?></td>
+                <td><?php smallButton('irrationals.png', '\mathbb{I}'); ?></td>
+                <td><?php smallButton('rationals.png', '\mathbb{Q}'); ?></td>
+                <td><?php smallButton('reals.png', '\mathbb{R}'); ?></td>
+                <td><?php smallButton('complex.png', '\mathbb{C}'); ?></td>
                 <td><?php smallButton('perp.png', '\perp'); ?></td>
                 <td><?php smallButton('parallel.png', '\parallel'); ?></td>
                 <td><?php smallButton('therefore.png', '\therefore'); ?></td>
@@ -217,5 +204,35 @@ function matrixButton($img, $braceType) {
 <br/>
 <div style="text-align: center">
     <canvas id="equation_preview"></canvas><br/>
+    <input id="TextEditor" type="text" style="display: none;"/><br/>
     <input type="button" onclick="tinyMCEPopup.execCommand('mceInsertContent', false, output()); tinyMCEPopup.close();" value="Insert"/>
+    <p>
+        Actual MathJax preview:<br/>
+
+<script type="text/javascript"
+  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML">
+</script>
+
+    <div id="MathOutput"></div>
+    <div id="MathParser" style="display: none;">$$ $$</div>
+    <script>
+        $("#MathParser").html(tinyMCE.activeEditor.selection.getContent());
+        $("#MathOutput").html(tinyMCE.activeEditor.selection.getContent());
+        //  Use a closure to hide the local variables from the global namespace
+        (function () {
+            var QUEUE = MathJax.Hub.queue;  // shorthand for the queue
+            var math = null;                // the element jax for the math output.
+
+            //  Get the element jax when MathJax has produced it.
+            QUEUE.Push(function () {
+                math = MathJax.Hub.getAllJax("MathParser")[0];
+            });
+
+            //  he onchange event handler that typesets the math entered by the user
+            window.UpdateMath = function(TeX) {
+                QUEUE.Push(["Text", math, TeX]);
+            }
+})();
+    </script>
+</p>
 </div>

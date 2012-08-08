@@ -17,7 +17,7 @@
                 ed.windowManager.open({
                     file : url + '/lib/equation.php',
                     width : 750,
-                    height : 420,
+                    height : 520,
                     inline : 1,
                     title: 'MathIllustrator',
                     popup_css: '../css/style.css'
