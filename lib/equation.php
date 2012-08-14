@@ -20,12 +20,14 @@ $PAGE->set_title('MathIllustrator');
 $PAGE->requires->js(new moodle_url('../js/jquery-1.7.2.min.js'), true);
 $PAGE->requires->js(new moodle_url('../js/jquery-ui-1.8.20.custom.min.js'), true);
 $PAGE->requires->js(new moodle_url('../js/jquery.alerts.js'), true);
+$PAGE->requires->js(new moodle_url('../js/jquery.contextMenu.js'), true);
 $PAGE->requires->js(new moodle_url('../../../tiny_mce_popup.js'), true);
 $PAGE->requires->js(new moodle_url('../js/html5_equation.js'), true);
 //$PAGE->requires->js(new moodle_url('../js/MathJax/MathJax.js?config=TeX-AMS_HTML'), true);
 
 $PAGE->requires->css(new moodle_url('../css/jquery-ui-1.8.20.custom.css'));
 $PAGE->requires->css(new moodle_url('../css/jquery.alerts.css'));
+$PAGE->requires->css(new moodle_url('../js/jquery.contextMenu.css'));
 //style.css is included in editor_plugin.js
 //$PAGE->requires->css(new moodle_url('../css/style.css'));
 
@@ -101,7 +103,7 @@ function matrixButton($img, $braceType) {
                 <td><?php smallButton('definition.png', ':='); ?></td>
                 <td><?php smallButton('sqrt.png', '\sqrt{ }'); ?></td>
                 <td><?php smallButton('ceil.png', '\left\lceil \right\rceil'); ?></td>
-                <td rowspan="2"><?php bigButton('sum.png', '\sum_{}^{}{}'); ?></td>
+                <td rowspan="2"><?php bigButton('sum.png', '\sum'); ?></td>
                 <td rowspan="2"><?php bigButton('prod.png', '\prod'); ?></td>
                 <td rowspan="2"><?php bigButton('coprod.png', '\coprod'); ?></td>
             </tr><tr>
@@ -135,7 +137,7 @@ function matrixButton($img, $braceType) {
                 <td><?php smallButton('beta.png', '\beta'); ?></td>
                 <td><?php smallButton('gamma.png', '\gamma'); ?></td>
                 <td><?php smallButton('delta.png', '\delta'); ?></td>
-                <td><?php smallButton('epsiv.png', '\epsilon'); ?></td>
+                <td><?php smallButton('epsilon.png', '\epsilon'); ?></td>
                 <td><?php smallButton('zeta.png', '\zeta'); ?></td>
                 <td><?php smallButton('eta.png', '\eta'); ?></td>
                 <td><?php smallButton('theta.png', '\theta'); ?></td>
@@ -206,17 +208,32 @@ function matrixButton($img, $braceType) {
     <canvas id="equation_preview"></canvas><br/>
     <input id="TextEditor" type="text" style="display: none;"/><br/>
     <input type="button" onclick="tinyMCEPopup.execCommand('mceInsertContent', false, output()); tinyMCEPopup.close();" value="Insert"/>
+
+    <ul id="conMenu" class="contextMenu">
+        <li class="delete"><a href="#some">TEST</a></li>
+    </ul>
+
+    <div style="height:450px;width:60px">dfs</div>
     <p>
         Actual MathJax preview:<br/>
+
+
 
 <script type="text/javascript"
   src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML">
 </script>
 
     <div id="MathOutput"></div>
-    <div id="MathParser" style="display: none;">$$ $$</div>
+    <div id="MathParser" style="display: none;"></div>
     <script>
-        $("#MathParser").html(tinyMCE.activeEditor.selection.getContent());
+        var inputText = tinyMCE.activeEditor.selection.getContent();
+        if (inputText.indexOf("$$") >= 0 && (inputText.indexOf("$$", inputText.indexOf("$$") + 1)) >= 0) {
+            $("#MathParser").html(tinyMCE.activeEditor.selection.getContent());
+        }
+        else {
+            $("#MathParser").html("$$ $$");
+        }
+
         $("#MathOutput").html(tinyMCE.activeEditor.selection.getContent());
         //  Use a closure to hide the local variables from the global namespace
         (function () {

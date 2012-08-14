@@ -20,7 +20,7 @@ body{
 .smallbutton {
     background-image:url('../images/smallbutton.png');
     width: 29px;
-    height: 29px;    
+    height: 29px;
     display: table-cell;
     vertical-align: middle;
     cursor: pointer;
@@ -39,7 +39,7 @@ body{
     max-height: 70%;
     max-width: 70%;
 }
-#buttons {
+body {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;

@@ -8,10 +8,15 @@ var fontSize = 20;
 var elements = new Array();
 //The element that is hovered
 var hover = null;
+var hoverIndex = null;
+var hoverLength = 0;
 //The element that is selected
 var selected = null;
 var selectedX = 0;
 var selectedY = 0;
+//The old selected location
+var oldSelectedX = 0;
+var oldSelectedY = 0;
 
 //Init function
 $(window).load(function () {
@@ -26,14 +31,18 @@ $(window).load(function () {
     ctx.textBaseline = "middle";
     ctx.font = fontSize + "px Cambria";
     //Set up the mouse and keyboard events
-    canvas.on("mousemove", canvasMove).on("mousedown", canvasDown).on("mouseup mouseout", canvasUp).on("dblclick", canvasContextMenu);
+    canvas.on("mousemove", canvasMove).on("mousedown", canvasDown).on("mouseup mouseout", canvasUp).on("dblclick", canvasContextMenu).on("touchstart", touchCanvas).on("touchstop", canvasUp);
     $(document).on("keydown", keyDown);
+    //canvas.contextMenu({menu: "conMenu"}, function(action) {
+    //    alert(action);
+    //});
 
     var data = MathJax.Hub.getAllJax("MathParser")[0];
     if (data != null) {
         var x = 10;
         $.each(data.root.data[0].data, function(index, item) {
-            var element = parseJax(item, x, canvasHeight/2, fontSize);
+            var element = parseJax(item, fontSize);
+            element.update(x, canvasHeight/2);
             elements = elements.concat(element);
             x += element.width;
         });
@@ -53,17 +62,11 @@ $(window).load(function () {
         },
         start: function (event, ui) {
             selected = null;
-            for (var n in bigs) {
-                if ($(this).children("input").val() == '\\' + bigs[n]) {
-                    //selected = new BigElement(bigs[n]);
-                    break;
-                }
+            UpdateMath($(this).children("input").val());
+            var data = MathJax.Hub.getAllJax("MathParser")[0];
+            if (data != null) {
+                selected = parseJax(data.root.data[0].data[0], 200, canvasHeight/2, fontSize);
             }
-            if (selected == null) {
-            //selected = new ContainerElement($(this).children("input").val());
-            }
-            selectedX = 0;
-            selectedY = 0;
         }
     });
 
@@ -75,19 +78,9 @@ $(window).load(function () {
             var x = event.pageX - canvas.offset().left;
             var y = event.pageY - canvas.offset().top;
 
-            //Must be this type of loop so that n increments at the end
-            for (var n = 0; n < mathElements.length; n++) {
-                if (x - selectedX < mathElements[n].x + (mathElements[n].width / 2))
-                    break;
-            }
-            //Set the new location
-            selectedPos = n;
-
             $(ui.helper).hide();
 
-            selected.x = x - selectedX;
-            selected.y = y - selectedY;
-            addElement(selected, selectedPos);
+            elements = elements.concat(selected);
 
             drawCanvas();
         },
@@ -107,18 +100,14 @@ $(window).load(function () {
     drawCanvas();
 });
 
-
-
 function addText(element) {
     UpdateMath($(element).children().first().val());
 
     var data = MathJax.Hub.getAllJax("MathParser")[0];
     if (data != null) {
-        if (elements.length == 0) {
-            var x = 10;
-        }
-        else {
-            var x = elements[elements.length - 1].x + elements[elements.length - 1].width;
+        var x = 10;
+        if (elements.length != 0) {
+            x = elements[elements.length - 1].x + elements[elements.length - 1].width;
         }
         $.each(data.root.data[0].data, function(index, item) {
             var element = parseJax(item, x, canvasHeight/2, fontSize);
@@ -129,11 +118,11 @@ function addText(element) {
     drawCanvas();
 }
 function output() {
-    var html = "";
+    var html = "$$ ";
     $.each(elements, function(index, item) {
         html += item.text();
     });
-    return html;
+    return html + " $$";
 }
 
 function drawCanvas() {
@@ -143,6 +132,10 @@ function drawCanvas() {
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     ctx.restore();
 
+    ctx.beginPath();
+    ctx.moveTo(0, canvasHeight/2);
+    ctx.lineTo(canvasWidth, canvasHeight/2);
+    ctx.stroke();
 
     $.each(elements, function(index, item) {
         item.draw();
@@ -164,18 +157,7 @@ function drawCanvas() {
         item;
 
         //If the element is the currently selected element
-        if (item == selected) {
-            var rect = [item.getX(), item.getY(), item.width, item.height];
-            var img = ctx.getImageData(rect[0], rect[1], rect[2], rect[3]);
-            for (var i = 0; i < img.data.length; i += 4) {
-                //If pixel color isn't white
-                if (img.data[i] != 255 && img.data[i+1] != 255 && img.data[i+2] != 255) {
-                    //Set the alpha
-                    img.data[i+3] = 128;
-                }
-            }
-            ctx.putImageData(img, rect[0], rect[1]);
-        }
+
 
         //If an element is being hovered
         if (item == hover) {
@@ -193,27 +175,22 @@ function canvasMove(event) {
     var y = event.pageY - canvas.offset().top;
 
     hover = null;
+    hoverIndex = null;
+
     $.each(elements, function(index, item) {
-        if (item.inBounds(x, y) && item != selected) {
-            hover = item;
-            //Returning false ends each loop
-            return false;
+        var found = item.getElement(x, y);
+        if (found != null && found != selected) {
+            hover = found;
+            hoverIndex = index;
+            return false
         }
     });
 
-    if (event.which == 1 && hover != null) {
-        selected = hover;
+    if (event.which == 1 && selected != null) {
+        selected.update(x - selectedX, y - selectedY);
     }
 
     drawCanvas();
-
-
-    if (selected != null) {
-        selected.x = x - (selected.width/2);
-        selected.y = y - (selected.heigth/2);
-    }
-
-
 
     return;
 
@@ -257,10 +234,14 @@ function canvasDown(event) {
     var x = event.pageX - canvas.offset().left;
     var y = event.pageY - canvas.offset().top;
 
+    selected = null;
     //Left mouse click
     if (event.which == 1 && hover != null) {
-        //hover.x = x;
-        //hover.y = y;
+        selected = hover;
+        selectedX = x - hover.x;
+        selectedY = y - (hover.y + (hover.height/2));
+        oldSelectedX = hover.x;
+        oldSelectedY = hover.y + (hover.height/2);
 
         drawCanvas();
 
@@ -287,23 +268,24 @@ function canvasContextMenu(event) {
     event.preventDefault();
     event.stopPropagation();
 
+    selected = null;
     if (hover != null) {
-        var thisHover = hover;
+        selected = hover;
         hover = null;
 
-        if (thisHover.type == "number" || thisHover.type == "char") {
+        if (selected.type == "number" || selected.type == "char") {
             $("#TextEditor").on("keyup update", function(e) {
                 UpdateMath($(this).val());
 
-                var x = thisHover.x;
-                var y = thisHover.y + (thisHover.height/2);
+                var x = selected.x;
+                var y = selected.y;
                 var data = MathJax.Hub.getAllJax("MathParser")[0];
                 if (data != null) {
                     var els = new Array();
                     $.each(data.root.data[0].data, function(index, item) {
-                        var element = parseJax(item, x, y, fontSize);
-                        els = els.concat(element);
-                        x += element.width;
+                        var el = parseJax(item, x, y, fontSize);
+                        els = els.concat(el);
+                        x += el.width;
                     });
 
                     var lastChunk = elements.slice(hoverIndex + hoverLength);
@@ -317,6 +299,7 @@ function canvasContextMenu(event) {
                     elements = elements.concat(lastChunk);
 
                     hoverLength = els.length;
+                    elements = elements.concat(els);
                 }
 
                 drawCanvas();
@@ -326,13 +309,56 @@ function canvasContextMenu(event) {
                 }
             }).on("blur", function() {
                 $(this).hide();
-            }).val(thisHover.value).focus().slideDown('slow');
+            }).val(selected.value).focus().slideDown('slow');
         }
     }
 }
 function canvasUp(e) {
-    //If there was something selected
+    if (selected != null) {
+
+        if (hover == null) {
+            UpdateMath(selected.text());
+            var data = MathJax.Hub.getAllJax("MathParser")[0];
+            if (data != null) {
+                var x = elements[elements.length - 1].x + elements[elements.length - 1].width;
+
+                var element = parseJax(data.root.data[0].data[0], fontSize);
+                element.update(x, canvasHeight/2);
+                elements = elements.concat(element);
+            }
+            if (elements.indexOf(selected) == -1) {
+                selected.type = "none";
+            }
+        }
+        else if (hover.type == "none") {
+            UpdateMath(selected.text());
+            var data = MathJax.Hub.getAllJax("MathParser")[0];
+            if (data != null) {
+                var oldX = hover.x;
+                var oldY = hover.y;
+
+                var newObj = parseJax(data.root.data[0].data[0], hover.nestedSize);
+                hover.type = newObj.type;
+                hover.children = newObj.children;
+
+
+                hover.update(oldX, oldY, hover.nestedSize);
+                return;
+            }
+        }
+
+        selected.update(oldSelectedX, oldSelectedY);
+
+        selected = null;
+        selectedX = 0;
+        selectedY = 0;
+        oldSelectedX = 0;
+        oldSelectedY = 0;
+    }
+
     return;
+
+
     if (selected != null && e.which == 1) {
         if (hover != null && selected instanceof ContainerElement) {
 
@@ -393,18 +419,31 @@ function keyDown(event){
         event.preventDefault();
         event.stopPropagation();
 
-        var x = hover.x;
         elements = elements.slice(0, hoverIndex).concat(elements.slice(hoverIndex + 1));
+        var x = 10;
+        if (hoverIndex > 0) {
+            x = elements[hoverIndex - 1].x + elements[hoverIndex - 1].width;
+        }
+
         for (var n = hoverIndex; n < elements.length; n++) {
-            elements[n].x = x;
+            elements[n].update(x, canvasHeight/2);
             x += elements[n].width;
         }
 
-        hover = null;
-        hoverIndex = null;
-        hoverLength = null;
-
         drawCanvas();
+    }
+}
+function touchCanvas(event) {
+    var t2 = event.timeStamp
+    , t1 = $(this).data('lastTouch') || t2
+    , dt = t2 - t1
+    , fingers = event.originalEvent.touches.length;
+    $(this).data('lastTouch', t2);
+    if (dt || dt <= 500 || fingers >= 1) {
+        event.preventDefault(); // double tap - prevent the zoom
+        // also synthesize click events we just swallowed up
+        return canvasContextMenu(event);
+    //$(this).trigger('click').trigger('click');
     }
 }
 
@@ -413,29 +452,22 @@ function addVector(matrixType) {
         if(r1 != null) {
             var tex = "\\begin{" + matrixType + "} ";
             for (var i = 0; i < r1; i++) {
-                for (var j = 0; j < 1; j++) {
-                    tex += "& ";
-                }
-                tex = tex.slice(0, -3);
-                tex += "\\\\ ";
+                tex += "1 \\\\ ";
             }
-            tex = tex.slice(0, -3);
+            tex = tex.slice(0, -4);
             tex += " \\end{" + matrixType + "}";
 
             UpdateMath(tex);
 
-            var x = 0;
+            var x = 10;
             if (elements.length > 0) {
                 x = elements[elements.length - 1].x + elements[elements.length - 1].width;
             }
-            var y = canvasHeight/2;
             var data = MathJax.Hub.getAllJax("MathParser")[0];
             if (data != null) {
-                $.each(data.root.data[0].data, function(index, item) {
-                    var element = parseJax(item, x, y, fontSize);
-                    elements = elements.concat(element);
-                    x += element.width;
-                });
+                var element = parseJax(data.root.data[0].data[0], x, canvasHeight/2, fontSize);
+                elements = elements.concat(element);
+                x += element.width;
             }
             drawCanvas();
         }
@@ -449,7 +481,6 @@ function addMatrix(braceType) {
     });
 }
 
-
 function getTextWidth(text, fontSize, fontStyle) {
     ctx.save();
     ctx.font = (fontStyle != null ? fontStyle + " " : "") + fontSize + "px Cambria";
@@ -459,22 +490,147 @@ function getTextWidth(text, fontSize, fontStyle) {
     return width;
 }
 
-function Element(type, value, parent) {
-    //Type of the element and its value
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function Element(type, nestedSize) {
+    //Type of element
     this.type = type;
-    this.value = value;
-    //Img object if it has one
-    this.img = null;
+    //Children array of values
+    this.children = new Array();
+
     //X and Y position
     this.x = null;
     this.y = null;
-    //Width and height of the element
+    //Width and height
     this.width = null;
     this.height = null;
-    //Children array if it has any
-    this.children = null;
+    //Size of element
+    this.nestedSize = nestedSize;
+}
+Element.prototype.draw = function() {
+    if (this.type == "none") {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+    }
+    else if (this.type == "number" || this.type == "char" || this.type == "chars" || this.type == "opchar") {
+        ctx.save();
+        ctx.font = ((this.type == "char") ? "italic " : "") + this.height + "px Cambria";
+        ctx.fillText(this.children[0], this.x, this.y + (this.height/2));
+        ctx.restore();
+    }
+    else if (this.type == "symbol" || this.type == "opsymbol") {
+        ctx.drawImage(this.children[0], this.x, this.y - ((this.type == "symbol") ? ((this.children[0].height - this.height)/2) : 0), this.width, this.children[0].height);
+    }
+    else if (this.type == "subsup" || this.type == "underover") {
+        this.children[0].draw();
+        if (this.children[1] != null) {
+            this.children[1].draw();
+        }
+        if (this.children[2] != null) {
+            this.children[2].draw();
+        }
+    }
 
-    this.parent = parent;
+
+
+
+
+
+
+    else if (this.type == "row") {
+        $.each(this.children, function(index, item) {
+            item.draw();
+        });
+    }
+    else if (this.type == "root") {
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y + this.height - 10);
+        ctx.lineTo(this.x + 5, this.y + this.height);
+        ctx.lineTo(this.value.x, this.y);
+        ctx.lineTo(this.value.x + this.value.width, this.y);
+        ctx.stroke();
+        this.value.draw();
+    }
+    else if (this.type == "frac") {
+        this.children[0].draw();
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y + (this.height/2));
+        ctx.lineTo(this.x + this.width, this.y + (this.height/2));
+        ctx.stroke();
+        this.children[1].draw();
+    }
+    else if (this.type == "fenced") {
+        ctx.save();
+        ctx.font = this.height + "px Cambria";
+        ctx.fillText(this.open, this.x, this.y + (this.height/2));
+        this.value.draw();
+        ctx.fillText(this.close, this.value.x + this.value.width, this.y + (this.height/2));
+        ctx.restore();
+    }
+    else if (this.type == "table") {
+        $.each(this.children, function(index, item) {
+            $.each(item, function(index, item) {
+                item.draw();
+            });
+        });
+    }
+
+    if (this == selected) {
+        var rect = [this.x, this.y, this.width, this.height];
+        var img = ctx.getImageData(rect[0], rect[1], rect[2], rect[3]);
+        for (var i = 0; i < img.data.length; i += 4) {
+            //If pixel color isn't white
+            if (img.data[i] != 255 && img.data[i+1] != 255 && img.data[i+2] != 255) {
+                //Set the alpha
+                img.data[i+3] = 128;
+            }
+        }
+        ctx.putImageData(img, rect[0], rect[1]);
+    }
+}
+Element.prototype.getElement = function(X, Y) {
+    var element = null;
+
+    if (this.inBounds(X, Y)) {
+
+        if (this.children != null && element == null) {
+            $.each(this.children, function(index, item) {
+                var el = null;
+                if (item instanceof Array) {
+                    $.each(item, function(index, item2) {
+                        el = item2.getElement(X, Y);
+                        if(el != null) {
+                            return false;
+                        }
+                    });
+                }
+                else if (item instanceof Element) {
+                    el = item.getElement(X, Y);
+                }
+
+                if (el != null) {
+                    element = el;
+                    return false;
+                }
+            });
+        }
+
+        if (element == null) {
+            element = this;
+        }
+    }
+    return element;
 }
 Element.prototype.inBounds = function(X, Y) {
     //Return true if X and Y are within the bounds of the element
@@ -486,150 +642,311 @@ Element.prototype.inBounds = function(X, Y) {
         return false;
     }
 }
-Element.prototype.draw = function() {
+Element.prototype.text = function() {
+    var text = "";
     if (this.type == "none") {
-        ctx.strokeRect(this.x, this.y - (this.height/2), this.width, this.height);
+        text = "";
     }
     else if (this.type == "number" || this.type == "char" || this.type == "chars" || this.type == "opchar") {
-        ctx.save();
-        if (this.type == "char") {
-            ctx.font = "italic " + this.height + "px Cambria";
-        }
-        else {
-            ctx.font = this.height + "px Cambria";
-        }
-        ctx.fillText(this.value, this.x, this.y);
-        ctx.restore();
+        text = this.children[0];
     }
     else if (this.type == "symbol") {
-        ctx.drawImage(this.img, this.x, this.y - (this.img.height/2), this.width, this.img.height*(this.height/18));
+        text = "\\" + this.children[0].value;
     }
     else if (this.type == "opsymbol") {
-        ctx.drawImage(this.img, this.x, this.y - (this.height/2), this.width, this.height);
+        text = "\\" + this.children[0].value;
     }
     else if (this.type == "underover" || this.type == "subsup") {
-        this.value.draw();
-        if (this.children[0] != null) {
-            this.children[0].draw();
+        if (this.children[1].type == "opsymbol") {
+            text = this.children[1].text() + this.children[0].text();
         }
-        if (this.children[1] != null) {
-            this.children[1].draw();
+        else {
+            text = this.children[0].text();
+            if (this.children[1].type != "none") {
+                text += "_{" + this.children[1].text() + "}";
+            }
+            if (this.children[2].type != "none") {
+                text += "^{" + this.children[2].text() + "}";
+            }
         }
     }
     else if (this.type == "row") {
+        text = "{";
         $.each(this.children, function(index, item) {
-            item.draw();
+            text += item.text();
         });
+        text += "}";
     }
     else if (this.type == "root") {
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y + (this.height/2) - 10);
-        ctx.lineTo(this.x + 5, this.y + (this.height/2));
-        ctx.lineTo(this.value.x, this.y - (this.height/2));
-        ctx.lineTo(this.value.x + this.value.width, this.y - (this.height/2));
-        ctx.stroke();
-        this.value.draw();
+        text = "\\sqrt" + this.value.text();
     }
     else if (this.type == "frac") {
-        this.children[0].draw();
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + this.width, this.y);
-        ctx.stroke();
-        this.children[1].draw();
+        text = "\\frac{" + this.children[0].text() + "}{" + this.children[1].text() + "}";
     }
     else if (this.type == "fenced") {
-        ctx.save();
-        ctx.font = this.height + "px Cambria";
-        ctx.fillText(this.open, this.x, this.y);
-        this.value.draw();
-        ctx.fillText(this.close, this.value.x + this.value.width, this.y);
-        ctx.restore();
+
     }
     else if (this.type == "table") {
+
+    }
+    return text;
+}
+Element.prototype.update = function(X, Y, nestedSize) {
+    if (nestedSize == null) {
+        nestedSize = this.nestedSize;
+    }
+
+    if (this.type == "none") {
+        this.x = X;
+        this.y = Y - (nestedSize/2);
+        this.width = nestedSize;
+        this.height = nestedSize;
+        this.nestedSize = nestedSize;
+    }
+    else if (this.type == "number" || this.type == "char" || this.type == "chars" || this.type == "opchar") {
+        this.x = X;
+        this.y = Y - (nestedSize/2);
+        this.width = getTextWidth(this.children[0], nestedSize, (this.type == "char") ? "italic" : null);
+        this.height = nestedSize;
+        this.nestedSize = nestedSize;
+    }
+    else if (this.type == "symbol" || this.type == "opsymbol") {
+        this.width = this.children[0].width;
+        this.height = (this.type == "symbol") ? nestedSize : this.children[0].height;
+        this.x = X;
+        this.y = Y - (this.height/2);
+        this.nestedSize = nestedSize;
+    }
+
+    else if (this.type == "subsup") {
         $.each(this.children, function(index, item) {
-            $.each(item, function(index, item) {
-                item.draw();
+            item.update();
+        });
+
+        this.x = X;
+        this.y = Y - (this.children[2].height) - (this.children[0].height/2);
+        this.width = this.children[0].width + Math.max(this.children[1].width, this.children[2].width);
+        this.height = this.children[0].height + this.children[1].height + this.children[2].height;
+        this.nestedSize = nestedSize;
+
+        this.children[0].update(X, Y);
+        this.children[1].update(X + this.children[0].width, Y + ((this.children[0].height + this.children[1].height)/2));
+        this.children[2].update(X + this.children[0].width, Y - ((this.children[0].height + this.children[2].height)/2));
+    }
+    else if (this.type == "underover") {
+        $.each(this.children, function(index, item) {
+            item.update();
+        });
+
+        this.x = X;
+        this.y = Y - (this.children[2].height) - (this.children[0].height/2);
+        this.width = Math.max(this.children[0].width, this.children[1].width, this.children[2].width);
+        this.height = this.children[0].height + this.children[1].height + this.children[2].height;
+        this.nestedSize = nestedSize;
+
+        this.children[0].update(X + ((this.width - this.children[0].width)/2), Y);
+        this.children[1].update(X + ((this.width - this.children[1].width)/2), Y + ((this.children[0].height + this.children[1].height)/2));
+        this.children[2].update(X + ((this.width - this.children[2].width)/2), Y - ((this.children[0].height + this.children[2].height)/2));
+    }
+
+
+/*
+    else if (jax.type == "texatom") {
+        element = parseJax(jax.data[0], x, y, fontSize);
+    }
+    else if (jax.type == "mrow") {
+        if (jax.data.length == 1) {
+            element = parseJax(jax.data[0], x, y, fontSize);
+        }
+        else {
+            element = new Element("row", null);
+            element.width = 0;
+            element.height = 0;
+            element.children = new Array();
+            var dx = x;
+            $.each(jax.data, function(index, item) {
+                var el = parseJax(item, dx, y, fontSize);
+                element.children.push(el);
+                element.width += el.width;
+                element.height = Math.max(el.height, element.height);
+                dx += el.width;
+            });
+            element.x = x;
+            element.y = y - (element.height/2);
+        }
+    }
+    else if (jax.type == "msqrt" || jax.type == "mroot") {
+        element = new Element("root", parseJax(jax.data[0], x + 10, y, fontSize));
+        if (jax.data[1] != null) {
+            element.children = parseJax(jax.data[1], x, y, fontSize);
+        }
+        element.width = element.value.width + 10;
+        element.height = element.value.height;
+        element.x = x;
+        element.y = y - (element.height/2);
+    }
+    else if (jax.type == "mfrac") {
+        var top = parseJax(jax.data[0], null, null, fontSize);
+        var bottom = parseJax(jax.data[1], null, null, fontSize);
+
+        var width = Math.max(top.width, bottom.width);
+        var height = top.height + bottom.height;
+
+        element = new Element("frac", null);
+        element.children = new Array();
+        element.children.push(parseJax(jax.data[0], x + ((width - top.width)/2), y - (top.height/2), fontSize));
+        element.children.push(parseJax(jax.data[1], x + ((width - bottom.width)/2), y + (bottom.height/2), fontSize));
+        element.width = width;
+        element.height = height;
+        element.x = x;
+        element.y = y - (height/2);
+    }
+    else if (jax.type == "mfenced") {
+        var el = parseJax(jax.data[0], null, null, fontSize);
+        element = new Element("fenced", parseJax(jax.data[0], x + getTextWidth(jax.open, el.height), y - (el.height/3), fontSize));
+        element.width = getTextWidth(jax.open, el.height) + element.value.width + getTextWidth(jax.close, el.height);
+        element.height = el.height;
+        element.x = x;
+        element.y = y - (el.height/2);
+        element.open = jax.open;
+        element.close = jax.close;
+    }
+    else if (jax.type == "mtable") {
+        var els = new Array();
+        var colWidths = new Array();
+        var rowHeights = new Array();
+        $.each(jax.data, function(index, item) {
+            var row = new Array();
+            $.each(item.data, function(index, item) {
+                row.push(parseJax(item.data[0], null, null, fontSize));
+                colWidths[index] = 0;
+            });
+            els.push(row);
+            rowHeights.push(0);
+        });
+        $.each(els, function(indexRow, item) {
+            $.each(item, function(indexCol, item) {
+                colWidths[indexCol] = Math.max(item.width, colWidths[indexCol]);
+                rowHeights[indexRow] = Math.max(item.height, rowHeights[indexRow]);
             });
         });
+
+        element = new Element("table", null);
+        element.children = new Array();
+        var dx;
+        var dy = y;
+        $.each(jax.data, function(indexRow, item) {
+            var row = new Array();
+            dx = x;
+            $.each(item.data, function(indexCol, item2) {
+                row.push(parseJax(item2.data[0], dx + ((colWidths[indexCol] - els[indexRow][indexCol].width)/2), dy, fontSize));
+                dx += colWidths[indexCol];
+                if (indexCol + 1 < item.data.length) {
+                    dx += 15;
+                }
+            });
+            element.children.push(row);
+            dy += rowHeights[indexRow]/2;
+            if (indexRow + 1 < jax.data.length) {
+                dy += (rowHeights[indexRow + 1]/2) + 5;
+            }
+        });
+        element.x = x;
+        element.y = y - (rowHeights[0]/2);
+        element.width = dx - x;
+        element.height = dy - y + (rowHeights[rowHeights.length - 1]/2);
     }
-}
-Element.prototype.text = function() {
-    return "-";
+
+
+
+    ///////////////////TODO: Check if array really needed///////////////////
+    else if (jax.type == 'mo') {
+        element = new Array();
+        var dx = x;
+        $.each(jax.data, function(index, item) {
+            var el = null;
+            if (item.type == 'chars') {
+                el = new Element('opchar', item.data[0]);
+                el.width = getTextWidth(el.value, fontSize);
+                el.height = fontSize;
+            }
+            else if (item.type == 'entity' && entityConversion[item.data[0]] != "ApplyFunction") {
+                el = new Element('opsymbol', entityConversion[item.data[0]]);
+                el.img = new Image();
+                el.img.src = '../images/' + el.value + '.png';
+                el.width = el.img.width*(fontSize/18);
+                el.height = el.img.height*(fontSize/18);
+            }
+            el.x = dx;
+            el.y = y - (el.height/2);
+            element.push(el);
+            dx += el.width;
+        });
+
+        if (element.length == 1) {
+            element = element[0];
+        }
+    }
+    */
 }
 
-function parseJax(jax, x, y, fontSize) {
+
+
+function parseJax(jax, nestedSize) {
     //The object that gets returned
     var element = null;
     //If jax exists
     if (jax != null) {
         if (jax.type == "mn") {
-            element = new Element("number", jax.data[0].data[0]);
-            element.x = x;
-            element.y = y;
-            element.width = getTextWidth(element.value, fontSize);
-            element.height = fontSize;
+            element = new Element("number", nestedSize);
+            element.children.push(jax.data[0].data[0]);
         }
         else if (jax.type == "mi") {
             if (jax.data[0].type == "chars") {
-                element = new Element(jax.data[0].data[0].length == 1 ? "char" : "chars", jax.data[0].data[0]);
-                element.width = getTextWidth(element.value, fontSize, "italic");
+                element = new Element((jax.data[0].data[0].length == 1) ? "char" : "chars", nestedSize);
+                element.children.push(jax.data[0].data[0]);
             }
             else if (jax.data[0].type == "entity") {
-                element = new Element("symbol", entityConversion[jax.data[0].data[0]]);
-                element.img = new Image();
-                element.img.src = "../images/" + element.value + ".png";
-                element.width = element.img.width;
+                element = new Element("symbol", nestedSize);
+                var img = new Image();
+                img.src = "../images/" + entityConversion[jax.data[0].data[0]] + ".png";
+                img.value = entityConversion[jax.data[0].data[0]];
+                element.children.push(img);
             }
-            element.x = x;
-            element.y = y;
-            element.height = fontSize;
         }
-        else if (jax.type == "munderover") {
-            var el = parseJax(jax.data[0], null, null, fontSize);
-            var ch1 = parseJax(jax.data[1], null, null, fontSize*0.65);
-            var ch2 = parseJax(jax.data[2], null, null, fontSize*0.65);
-
-            var width = Math.max(el.width, ch1.width, ch2.width);
-            var height = el.height + ch1.height + ch2.height;
-
-            element = new Element("underover", parseJax(jax.data[0], x + ((width - el.width)/2), y, fontSize));
-            element.children = new Array();
-            element.children.push(parseJax(jax.data[1], x + ((width - ch1.width)/2), y + ((el.height + ch1.height)/2), fontSize*0.65));
-            element.children.push(parseJax(jax.data[2], x + ((width - ch2.width)/2), y - ((el.height + ch2.height)/2), fontSize*0.65));
-            element.x = x;
-            element.y = y;
-            element.width = width;
-            element.height = height;
+        else if (jax.type == "mo") {
+            if (jax.data[0].type == "chars") {
+                element = new Element("opchar", nestedSize);
+                element.children.push(jax.data[0].data[0]);
+            }
+            else if (jax.data[0].type == "entity") {
+                element = new Element("opsymbol", nestedSize);
+                var img = new Image();
+                img.src = "../images/" + entityConversion[jax.data[0].data[0]] + ".png";
+                img.value = entityConversion[jax.data[0].data[0]];
+                element.children.push(img);
+            }
         }
-        else if (jax.type == "msubsup") {
-            var el = parseJax(jax.data[0], null, null, fontSize);
-            var ch1 = parseJax(jax.data[1], null, null, fontSize*0.65);
-            var ch2 = parseJax(jax.data[2], null, null, fontSize*0.65);
 
-            var width = el.width + Math.max(ch1.width, ch2.width);
-            var height = el.height + ch1.height + ch2.height;
-
-            element = new Element("subsup", parseJax(jax.data[0], x, y, fontSize));
-            element.children = new Array();
-            element.children.push(parseJax(jax.data[1], x + el.width, y + ((el.height + ch1.height)/2), fontSize*0.65));
-            element.children.push(parseJax(jax.data[2], x + el.width, y - ((el.height + ch2.height)/2), fontSize*0.65));
-            element.x = x;
-            element.y = y - (height/2);
-            element.width = width;
-            element.height = height;
+        else if (jax.type == "msubsup" || jax.type == "munderover") {
+            element = new Element((jax.type == "msubsup") ? "subsup" : "underover", nestedSize);
+            element.children.push(parseJax(jax.data[0], nestedSize));
+            element.children.push(parseJax(jax.data[1], nestedSize*0.65));
+            element.children.push(parseJax(jax.data[2], nestedSize*0.65));
         }
+
+
+
+
         else if (jax.type == "texatom") {
-            element = parseJax(jax.data[0], x, y, fontSize);
+            element = parseJax(jax.data[0], nestedSize);
         }
         else if (jax.type == "mrow") {
             if (jax.data.length == 1) {
-                element = parseJax(jax.data[0], x, y, fontSize);
+                element = parseJax(jax.data[0], nestedSize);
             }
             else {
                 element = new Element("row", null);
-                element.x = x;
-                element.y = y;
                 element.width = 0;
                 element.height = 0;
                 element.children = new Array();
@@ -641,6 +958,8 @@ function parseJax(jax, x, y, fontSize) {
                     element.height = Math.max(el.height, element.height);
                     dx += el.width;
                 });
+                element.x = x;
+                element.y = y - (element.height/2);
             }
         }
         else if (jax.type == "msqrt" || jax.type == "mroot") {
@@ -648,10 +967,10 @@ function parseJax(jax, x, y, fontSize) {
             if (jax.data[1] != null) {
                 element.children = parseJax(jax.data[1], x, y, fontSize);
             }
-            element.x = x;
-            element.y = y;
             element.width = element.value.width + 10;
             element.height = element.value.height;
+            element.x = x;
+            element.y = y - (element.height/2);
         }
         else if (jax.type == "mfrac") {
             var top = parseJax(jax.data[0], null, null, fontSize);
@@ -664,18 +983,18 @@ function parseJax(jax, x, y, fontSize) {
             element.children = new Array();
             element.children.push(parseJax(jax.data[0], x + ((width - top.width)/2), y - (top.height/2), fontSize));
             element.children.push(parseJax(jax.data[1], x + ((width - bottom.width)/2), y + (bottom.height/2), fontSize));
-            element.x = x;
-            element.y = y;
             element.width = width;
             element.height = height;
+            element.x = x;
+            element.y = y - (height/2);
         }
         else if (jax.type == "mfenced") {
             var el = parseJax(jax.data[0], null, null, fontSize);
             element = new Element("fenced", parseJax(jax.data[0], x + getTextWidth(jax.open, el.height), y - (el.height/3), fontSize));
+            element.width = getTextWidth(jax.open, el.height) + element.value.width + getTextWidth(jax.close, el.height);
+            element.height = el.height;
             element.x = x;
-            element.y = y;
-            element.width = element.value.width;
-            element.height = element.value.height;
+            element.y = y - (el.height/2);
             element.open = jax.open;
             element.close = jax.close;
         }
@@ -720,67 +1039,43 @@ function parseJax(jax, x, y, fontSize) {
                 }
             });
             element.x = x;
-            element.y = y;
+            element.y = y - (rowHeights[0]/2);
             element.width = dx - x;
-            element.height = dy - y;
+            element.height = dy - y + (rowHeights[rowHeights.length - 1]/2);
         }
 
 
 
+    ///////////////////TODO: Check if array really needed///////////////////
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        ///////////////////TODO: Check if array really needed///////////////////
-        else if (jax.type == 'mo') {
-            element = new Array();
-            var dx = x;
-            $.each(jax.data, function(index, item) {
-                var el = null;
-                if (item.type == 'chars') {
-                    el = new Element('opchar', item.data[0]);
-                    el.width = getTextWidth(el.value, fontSize);
-                    el.height = fontSize;
-                }
-                else if (item.type == 'entity' && entityConversion[item.data[0]] != "ApplyFunction") {
-                    el = new Element('opsymbol', entityConversion[item.data[0]]);
-                    el.img = new Image();
-                    el.img.src = '../images/' + el.value + '.png';
-                    el.width = el.img.width*(fontSize/18);
-                    el.height = el.img.height*(fontSize/18);
-                }
-                el.x = dx;
-                el.y = y;
-                element.push(el);
-                dx += el.width;
-            });
-
-            if (element.length == 1) {
-                element = element[0];
-            }
-        }
     }
     else {
-        element = new Element("none", null);
-        element.x = x;
-        element.y = y;
-        element.width = fontSize;
-        element.height = fontSize;
+        element = new Element("none", nestedSize);
     }
     return element;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 var entityConversion = {
     '#x2061': 'ApplyFunction',
@@ -795,7 +1090,7 @@ var entityConversion = {
     '#x2297': 'CircleTimes',
     '#x2261': 'Congruent',
     '#x222E': 'ContourIntegral',
-    '#x2210': 'Coproduct',
+    '#x2210': 'coprod',
     '#x2A2F': 'Cross',
     '#x22D3': 'Cup',
     '#x224D': 'CupCap',
@@ -807,7 +1102,7 @@ var entityConversion = {
     '#x2250': 'DotEqual',
     '#x00A8': 'DoubleDot',
     '#x22A8': 'DoubleRightTee',
-    '#x2225': 'DoubleVerticalBar',
+    '#x2225': 'parallel',
     '#x2193': 'DownArrow',
     '#x21BD': 'DownLeftVector',
     '#x21C1': 'DownRightVector',
@@ -868,7 +1163,7 @@ var entityConversion = {
     '#x27FA': 'Longleftrightarrow',
     '#x27F9': 'Longrightarrow',
     '#x21B0': 'Lsh',
-    '#x2213': 'MinusPlus',
+    '#x2213': 'mp',
     '#x226B': 'NestedGreaterGreater',
     '#x226A': 'NestedLessLess',
     '#x2226': 'NotDoubleVerticalBar',
@@ -897,12 +1192,12 @@ var entityConversion = {
     '#x2202': 'PartialD',
     '#x03A6': 'Phi',
     '#x03A0': 'Pi',
-    '#x00B1': 'PlusMinus',
+    '#x00B1': 'pm',
     '#x227A': 'Precedes',
     '#x2AAF': 'PrecedesEqual',
     '#x227C': 'PrecedesSlantEqual',
     '#x227E': 'PrecedesTilde',
-    '#x220F': 'Product',
+    '#x220F': 'prod',
     '#x221D': 'Proportional',
     '#x03A8': 'Psi',
     '#x21A0': 'Rarr',
@@ -948,7 +1243,7 @@ var entityConversion = {
     '#x2234': 'Therefore',
     '#x0398': 'Theta',
     '#x223C': 'Tilde',
-    '#x2243': 'TildeEqual',
+    '#x2243': 'simeq',
     '#x2245': 'TildeFullEqual',
     '#x2248': 'TildeTilde',
     '#x005F': 'UnderBar',
@@ -957,7 +1252,7 @@ var entityConversion = {
     '#x228E': 'UnionPlus',
     '#x2191': 'UpArrow',
     '#x2195': 'UpDownArrow',
-    '#x22A5': 'UpTee',
+    '#x22A5': 'perp',
     '#x21D1': 'Uparrow',
     '#x21D5': 'Updownarrow',
     '#x03A5': 'Upsilon',
@@ -1021,7 +1316,7 @@ var entityConversion = {
     '#x2663': 'clubs',
     '#x003A': 'colon',
     '#x2201': 'comp',
-    '#x22EF': 'ctdot',
+    '#x22EF': 'cdots',
     '#x22DE': 'cuepr',
     '#x22DF': 'cuesc',
     '#x21B6': 'cularr',
@@ -1041,7 +1336,7 @@ var entityConversion = {
     '#x2251': 'doteqdot',
     '#x2214': 'dotplus',
     '#x22A1': 'dotsquare',
-    '#x22F1': 'dtdot',
+    '#x22F1': 'ddots',
     '#x2256': 'ecir',
     '#x2252': 'efDot',
     '#x2A96': 'egs',
@@ -1049,7 +1344,7 @@ var entityConversion = {
     '#x2A95': 'els',
     '#x2205': 'empty',
     '#x03B5': 'epsi',
-    '#x03F5': 'epsiv',
+    '#x03F5': 'epsilon',
     '#x2253': 'erDot',
     '#x03B7': 'eta',
     '#x00F0': 'eth',
@@ -1127,7 +1422,7 @@ var entityConversion = {
     '#x2298': 'osol',
     '#x002E': 'period',
     '#x03C6': 'phi',
-    '#x03D5': 'phiv',
+    '#x03D5': 'phi',
     '#x03C0': 'pi',
     '#x03D6': 'piv',
     '#x2AB7': 'prap',
@@ -1175,10 +1470,10 @@ var entityConversion = {
     '#x00D7': 'times',
     '#x25B5': 'triangle',
     '#x225C': 'triangleq',
-    '#x03C5': 'upsi',
+    '#x03C5': 'upsilon',
     '#x21C8': 'upuparrows',
     '#x22BB': 'veebar',
-    '#x22EE': 'vellip',
+    '#x22EE': 'vdots',
     '#x2118': 'weierp',
     '#x03BE': 'xi',
     '#x00A5': 'yen',
