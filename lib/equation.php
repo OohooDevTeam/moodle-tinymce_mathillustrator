@@ -1,13 +1,16 @@
 <?php
-/*
-  MathIllustrator plugin for TinyMCE editor
-
-  @package MathIllustrator
-  @version 1.0
-  @author Braedan Jongerius
-  @design Braedan Jongerius
-  @copyright 2012 Campus St. Jean - University of Alberta - Oohoo.biz
- */
+/* * **********************************************************************
+ * *                         MathIllustrator                             **
+ * ************************************************************************
+ * @package     tinymce                                                  **
+ * @subpackage  mathillustrator                                          **
+ * @name        MathIllustrator                                          **
+ * @copyright   oohoo.biz                                                **
+ * @link        http://oohoo.biz                                         **
+ * @author      Braedan Jongerius <jongeriu@ualberta.ca> 2012            **
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later **
+ * ************************************************************************
+ * ********************************************************************** */
 
 require_once('../../../../../../../../config.php');
 
@@ -39,12 +42,21 @@ function smallButton($img, $value) {
     echo "<span class='smallbutton' onclick='addText(this);'><input type='image' src='../images/$img' value='$value' /></span>";
 }
 
-//TODO
+/**
+ *
+ * @param type $img
+ * @param type $output
+ * @return type
+ */
 function bigButton($img, $output) {
     echo "<span class='bigbutton' onclick='addText(this)'><input type='image' src='../images/$img' value='$output' /></span>";
 }
 
-//TODO
+/**
+ *
+ * @param type $img
+ * @param type $matrixType
+ */
 function vectorButton($img, $matrixType) {
     echo "<span class='bigbutton' onclick='addVector(\"$matrixType\");'><input type='image' src='../images/$img' /></span>";
 }
@@ -213,15 +225,14 @@ function matrixButton($img, $braceType) {
         <li class="delete"><a href="#some">TEST</a></li>
     </ul>
 
-    <div style="height:450px;width:60px">dfs</div>
     <p>
         Actual MathJax preview:<br/>
 
 
 
-<script type="text/javascript"
-  src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML">
-</script>
+        <script type="text/javascript"
+                src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML">
+        </script>
 
     <div id="MathOutput"></div>
     <div id="MathParser" style="display: none;"></div>
@@ -249,7 +260,7 @@ function matrixButton($img, $braceType) {
             window.UpdateMath = function(TeX) {
                 QUEUE.Push(["Text", math, TeX]);
             }
-})();
+        })();
     </script>
 </p>
 </div>

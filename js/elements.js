@@ -1,3 +1,16 @@
+/* * **********************************************************************
+ * *                         MathIllustrator                             **
+ * ************************************************************************
+ * @package     tinymce                                                  **
+ * @subpackage  mathillustrator                                          **
+ * @name        MathIllustrator                                          **
+ * @copyright   oohoo.biz                                                **
+ * @link        http://oohoo.biz                                         **
+ * @author      Braedan Jongerius <jongeriu@ualberta.ca> 2012            **
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later **
+ * ************************************************************************
+ * ********************************************************************** */
+
 function ContainerElement(text, scale, parent) {
     this.x = null;
     this.y = null;

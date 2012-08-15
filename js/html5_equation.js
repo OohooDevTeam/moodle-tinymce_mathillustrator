@@ -1,9 +1,23 @@
+/* * **********************************************************************
+ * *                         MathIllustrator                             **
+ * ************************************************************************
+ * @package     tinymce                                                  **
+ * @subpackage  mathillustrator                                          **
+ * @name        MathIllustrator                                          **
+ * @copyright   oohoo.biz                                                **
+ * @link        http://oohoo.biz                                         **
+ * @author      Braedan Jongerius <jongeriu@ualberta.ca> 2012            **
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later **
+ * ************************************************************************
+ * ********************************************************************** */
+
 //Canvas element and its context
 var canvas, ctx;
 //Width and height of the canvas
 var canvasWidth, canvasHeight;
 //Default font size
 var fontSize = 20;
+
 //Math elements array
 var elements = new Array();
 //The element that is hovered
@@ -33,9 +47,6 @@ $(window).load(function () {
     //Set up the mouse and keyboard events
     canvas.on("mousemove", canvasMove).on("mousedown", canvasDown).on("mouseup mouseout", canvasUp).on("dblclick", canvasContextMenu).on("touchstart", touchCanvas).on("touchstop", canvasUp);
     $(document).on("keydown", keyDown);
-    //canvas.contextMenu({menu: "conMenu"}, function(action) {
-    //    alert(action);
-    //});
 
     var data = MathJax.Hub.getAllJax("MathParser")[0];
     if (data != null) {
@@ -48,15 +59,11 @@ $(window).load(function () {
         });
     }
 
-    //Set the buttons as draggable
+    //Make the buttons draggable
     $("#buttons .smallbutton, #buttons .bigbutton").draggable({
         cancel: "button",
         opacity: 0.7,
         revert: "invalid",
-        cursorAt: {
-            left: 0,
-            top: 0
-        },
         helper: function () {
             return $(this).children("input").clone().appendTo("body");
         },
@@ -69,7 +76,6 @@ $(window).load(function () {
             }
         }
     });
-
     $("#equation_preview").droppable({
         activeClass: "canvas-active",
         tolerance: 'touch',
@@ -100,6 +106,10 @@ $(window).load(function () {
     drawCanvas();
 });
 
+/**
+ * Add an element
+ * @param type element
+ */
 function addText(element) {
     UpdateMath($(element).children().first().val());
 
@@ -119,12 +129,16 @@ function addText(element) {
 }
 function output() {
     var html = "$$ ";
-    $.each(elements, function(index, item) {
+    $(elements).each(function(index, item) {
         html += item.text();
     });
     return html + " $$";
 }
 
+/**
+ * Draw the canvas
+ * @return void
+ */
 function drawCanvas() {
     //Clear the canvas
     ctx.save();
@@ -133,11 +147,13 @@ function drawCanvas() {
     ctx.restore();
 
     ctx.beginPath();
+    ctx.lineWidth = 1;
     ctx.moveTo(0, canvasHeight/2);
     ctx.lineTo(canvasWidth, canvasHeight/2);
     ctx.stroke();
 
-    $.each(elements, function(index, item) {
+    //Draw each element
+    $(elements).each(function(index, item) {
         item.draw();
     });
 
@@ -149,24 +165,18 @@ function drawCanvas() {
         ctx.restore();
     }
 
-    return;
-
-
-    //For each math element
-    $.each(elements, function(index, item) {
-        item;
-
-        //If the element is the currently selected element
-
-
-        //If an element is being hovered
-        if (item == hover) {
-            ctx.save();
-            ctx.strokeStyle = 'red';
-            ctx.strokeRect(item.getX(), item.getY(), item.width, item.height);
-            ctx.restore();
+    if (selected != null) {
+        var rect = [selected.x, selected.y, selected.width, selected.height];
+        var img = ctx.getImageData(rect[0], rect[1], rect[2], rect[3]);
+        for (var i = 0; i < img.data.length; i += 4) {
+            //If pixel color isn't white
+            if (img.data[i] != 255 && img.data[i+1] != 255 && img.data[i+2] != 255) {
+                //Set the alpha
+                img.data[i+3] = 128;
+            }
         }
-    });
+        ctx.putImageData(img, rect[0], rect[1]);
+    }
 }
 
 function canvasMove(event) {
@@ -195,16 +205,7 @@ function canvasMove(event) {
     return;
 
 
-    hover = null;
-    for (var n in mathElements) {
-        if (mathElements[n].inBounds(x, y) && mathElements[n] != selected) {
-            var element = mathElements[n].getElement(x, y);
-            if (selected == null || element instanceof ContainerElement) {
-                hover = element;
-            }
-            break;
-        }
-    }
+   
 
     //Left mouse is down and something is selected
     if (event.which == 1 && selected != null) {
@@ -361,7 +362,6 @@ function canvasUp(e) {
 
     if (selected != null && e.which == 1) {
         if (hover != null && selected instanceof ContainerElement) {
-
             if (hover instanceof ContainerElement) {
                 for (var m in surroundable) {
                     if (selected.text == surroundable[m]) {
@@ -375,30 +375,12 @@ function canvasUp(e) {
                 }
 
                 hover.setText(hover.text + selected.text);
-
             }
-            else if (hover instanceof BigElement)
+            else if (hover instanceof BigElement) {
                 hover.eq.setText(hover.eq.text + selected.text);
-
-            /*
-            for (var m in surroundable) {
-                if (selected.text == surroundable[m]) {
-                    var middle = surroundable[m].indexOf(" ");
-                    var left = surroundable[m].substr(0, middle + 1);
-                    var right = surroundable[m].substr(middle);
-                    hover.setText(left + hover.text + right);
-                    drawCanvas();
-                    break;
-                }
             }
 
-            for (var m in containerAcceptable) {
-                if (selected.text == '\\' + containerAcceptable[m]) {
-                    thisElement.setText(thisElement.text + '\\' + containerAcceptable[m]);
-                    drawCanvas();
-                    break;
-                }
-            }*/
+
 
             mathElements.splice(selectedPos, 1);
         }
@@ -481,6 +463,13 @@ function addMatrix(braceType) {
     });
 }
 
+/**
+ * Gets the width of some text in a specified font size and type
+ * @param string text The text to measure
+ * @param number fontSize The font size in px
+ * @param mixed fontStyle ("italic"|null)
+ * @return number The width of the text
+ */
 function getTextWidth(text, fontSize, fontStyle) {
     ctx.save();
     ctx.font = (fontStyle != null ? fontStyle + " " : "") + fontSize + "px Cambria";
@@ -489,11 +478,6 @@ function getTextWidth(text, fontSize, fontStyle) {
 
     return width;
 }
-
-
-
-
-
 
 
 
@@ -584,19 +568,6 @@ Element.prototype.draw = function() {
                 item.draw();
             });
         });
-    }
-
-    if (this == selected) {
-        var rect = [this.x, this.y, this.width, this.height];
-        var img = ctx.getImageData(rect[0], rect[1], rect[2], rect[3]);
-        for (var i = 0; i < img.data.length; i += 4) {
-            //If pixel color isn't white
-            if (img.data[i] != 255 && img.data[i+1] != 255 && img.data[i+2] != 255) {
-                //Set the alpha
-                img.data[i+3] = 128;
-            }
-        }
-        ctx.putImageData(img, rect[0], rect[1]);
     }
 }
 Element.prototype.getElement = function(X, Y) {
@@ -891,6 +862,7 @@ Element.prototype.update = function(X, Y, nestedSize) {
 }
 
 
+//TEST STRING: $$ abc12d3\alpha\pi     b_a^3 $$
 
 function parseJax(jax, nestedSize) {
     //The object that gets returned
@@ -1054,21 +1026,6 @@ function parseJax(jax, nestedSize) {
     }
     return element;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

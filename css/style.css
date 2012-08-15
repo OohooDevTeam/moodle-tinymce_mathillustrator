@@ -1,12 +1,15 @@
-/*
-  MathIllustrator plugin for TinyMCE editor
-
-  @package MathIllustrator
-  @version 1.0
-  @author Braedan Jongerius
-  @design Braedan Jongerius
-  @copyright 2012 Campus St. Jean - University of Alberta - Oohoo.biz
-*/
+/* * **********************************************************************
+ * *                         MathIllustrator                             **
+ * ************************************************************************
+ * @package     tinymce                                                  **
+ * @subpackage  mathillustrator                                          **
+ * @name        MathIllustrator                                          **
+ * @copyright   oohoo.biz                                                **
+ * @link        http://oohoo.biz                                         **
+ * @author      Braedan Jongerius <jongeriu@ualberta.ca> 2012            **
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later **
+ * ************************************************************************
+ * ********************************************************************** */
 
 body{
     background-color:#f2f9fd;

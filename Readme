@@ -1,0 +1,11 @@
+MathIllustrator
+
+MathIllustrator is a drag+drop tinymce LaTeX editor plugin
+
+Prerequisites: None
+Installation: Copy the folder into "moodle\lib\editor\tinymce\tiny_mce\<VERSION>\plugins" and name the folder "mathillustrator"
+To display in moodle's tinymce editors, add "mathillustrator" to $params['plugins'] and the $params['theme_advanced_buttons<N>_add']
+that you want in function get_init_params in "moodle\lib\editor\tinymce\lib.php"
+Required: An HTML5 capable browser to view the MathIllustrator editor
+
+Refer to the PDF documentation for more information: URL http://oohoo.biz/
